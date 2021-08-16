@@ -17,7 +17,7 @@ In order to use the following fretboard segmentation, you must make sure to have
 
 1. Start the script in a terminal panel with the following command:
     ```
-    python FREG-SEG.py
+    python FREG-SEG.py -c (filename)
     ```
 2. Select the directory of the guitar images for the segmentation procedure.
 3. Select the directory to save the fretboard masks obtained.
