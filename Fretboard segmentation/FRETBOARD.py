@@ -231,8 +231,8 @@ def write_masks(f_path, filename, mask):
     directory = os.path.join(f_path, filename)
     cv2.imwrite(directory, mask)
 
-def fretbord_correction(image_crop):
-    image_crop = cv2.cvtColor(image_crop, cv2.COLOR_RGB2BGR)
+def fretbord_correction(image):
+    image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
     a = []
     b = []
     def on_EVENT_LBUTTONDOWN(event, x, y, flags, param):
@@ -240,21 +240,21 @@ def fretbord_correction(image_crop):
             xy = "%d,%d" % (x, y)
             a.append(x)
             b.append(y)
-            cv2.circle(image_crop, (x, y), 2, (0, 0, 255), thickness=-5)
-            cv2.putText(image_crop, xy, (x, y), cv2.FONT_HERSHEY_PLAIN,
+            cv2.circle(image, (x, y), 2, (0, 0, 255), thickness=-5)
+            cv2.putText(image, xy, (x, y), cv2.FONT_HERSHEY_PLAIN,
                         1.0, (255, 0, 0), thickness=1)
-            cv2.imshow("image", image_crop)
+            cv2.imshow("image", image)
 
     cv2.namedWindow('image', cv2.WINDOW_NORMAL)
     cv2.setMouseCallback("image", on_EVENT_LBUTTONDOWN)
-    cv2.imshow("image", image_crop)
+    cv2.imshow("image", image)
     cv2.waitKey(0)
     cv2.destroyAllWindows()
     c = np.array([[a[0],b[0]],[a[2],b[2]],[a[3],b[3]],[a[1],b[1]]])
-    img_ncrop = cv2.cvtColor(image_crop,cv2.COLOR_BGR2GRAY)
-    rows,columns = img_ncrop.shape
+    img = cv2.cvtColor(image,cv2.COLOR_BGR2GRAY)
+    rows,columns = img.shape
 
     polygon = np.array([c[0][::-1],c[1][::-1],c[2][::-1],c[3][::-1]])
 
-    mask = np.uint8(1*polygon2mask(img_ncrop.shape, polygon))
+    mask = np.uint8(1*polygon2mask(img.shape, polygon))
     return mask

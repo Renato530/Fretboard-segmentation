@@ -102,13 +102,13 @@ def main(fileName):
                               cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
         frets = FRETBOARD.frets_extraction(frets * rot_mask, kernel_lenght=50, niterations=1)
 
-        # String extraction
-        strings = FRETBOARD.strings_extraction(rot_HED, kernel_lenght=50, niterations=1)
-        strings = cv2.threshold(np.uint8(strings), 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
+        # Fretboard edges extraction
+        fretboard_edges = FRETBOARD.strings_extraction(rot_HED, kernel_lenght=50, niterations=1)
+        fretboard_edges = cv2.threshold(np.uint8(fretboard_edges), 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
 
         # Construct bounding box for the fretboard
         peaks_frets = FRETBOARD.vertical_proj_peaks_v2(frets, alpha=0.05)
-        pts, _, _ = FRETBOARD.mask_pts(strings, peaks_frets, threshold=450, vmin=1, vmax=-1)
+        pts, _, _ = FRETBOARD.mask_pts(fretboard_edges, peaks_frets, threshold=450, vmin=1, vmax=-1)
 
         fretboard_mask = FRETBOARD.fretboard_mask(guitar_Crop_whole, pts, angle)
         dilate_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (4, 4))
@@ -126,7 +126,22 @@ def main(fileName):
 
     print("Time it took to finish (hr:min:sec): ", datetime.datetime.now() - begin_time)
 
+    while True:
+        option = str(input('Keep current segmentation of fretboards?' + ' (y/n): ')).lower().strip()
+        if option[0] == 'n':
+            n = int(input("Please enter the number of the frame to correct the semgentation: "))
+            mask = FRETBOARD.fretbord_correction(guitar_images[n-1])
 
+            filename = "mask_" + str(n) + ".png"
+            FRETBOARD.write_masks(maskDirectory, filename, mask * 255)
+
+            filename2 = "overlay_" + str(n) + ".png"
+            foreground = cv2.cvtColor(mask * 255, cv2.COLOR_GRAY2BGR)
+            background = cv2.cvtColor(guitar_images[n-1], cv2.COLOR_RGB2BGR)
+            dst = cv2.addWeighted(background, 1, foreground, 0.5, 0)
+            FRETBOARD.write_masks(overlayDirectory, filename2, dst)
+        else:
+            break
 if __name__ == '__main__':
     # Insert argument -c filename when running the python script
     parser = argparse.ArgumentParser()
