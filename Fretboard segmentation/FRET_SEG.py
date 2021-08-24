@@ -17,6 +17,17 @@ import FRETBOARD
 
 
 def main(fileName):
+    """FRET_SEG.py segments the fretboard of the guitar of images.
+    The script ask users to input a prefix, select the ROI in a frame and manually annoted if segmentation mistakes
+    are present.
+    Parameters
+    ----------
+    fileName : string
+        Prefix of the images in the folder.
+    Returns
+    -------
+    None.
+    """
     # Create a class object for the holistically-nested edge detection (HED)
     class CropLayer(object):
         def __init__(self, params, blobs):
@@ -51,7 +62,7 @@ def main(fileName):
     overlayDirectory = FRETBOARD.select_folder()
 
     # Load the HED model
-    HED_files = FRETBOARD.load_model_v2()
+    HED_files = FRETBOARD.load_HED()
     protoPath = HED_files[0]
     modelPath = HED_files[1]
     net = cv2.dnn.readNetFromCaffe(protoPath, modelPath)
@@ -90,7 +101,7 @@ def main(fileName):
         HED_whole = HED_whole * mask_nCrop_erode
 
         # Rotate image
-        linesP = FRETBOARD.Hough_linesP(hed, 500)
+        linesP = FRETBOARD.Hough_linesP(hed)
         angle = FRETBOARD.find_guitar_angle(linesP)
         rot_HED = FRETBOARD.rotate_image(HED_whole, angle)
 
@@ -100,14 +111,14 @@ def main(fileName):
         output_HL3 = FRETBOARD.wavelet_transform(rot_img)
         frets = cv2.threshold(np.uint8(output_HL3 * rot_mask), np.min(output_HL3), np.max(output_HL3),
                               cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
-        frets = FRETBOARD.frets_extraction(frets * rot_mask, kernel_lenght=50, niterations=1)
+        frets = FRETBOARD.frets_extraction(frets * rot_mask, kernel_lenght=100, niterations=1)
 
         # Fretboard edges extraction
-        fretboard_edges = FRETBOARD.strings_extraction(rot_HED, kernel_lenght=50, niterations=1)
+        fretboard_edges = FRETBOARD.fretboardEdges(rot_HED, kernel_lenght=100, niterations=1)
         fretboard_edges = cv2.threshold(np.uint8(fretboard_edges), 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
 
         # Construct bounding box for the fretboard
-        peaks_frets = FRETBOARD.vertical_proj_peaks_v2(frets, alpha=0.05)
+        peaks_frets = FRETBOARD.vertical_proj_peaks(frets, alpha=0.1)
         pts, _, _ = FRETBOARD.mask_pts(fretboard_edges, peaks_frets, threshold=450, vmin=1, vmax=-1)
 
         fretboard_mask = FRETBOARD.fretboard_mask(guitar_Crop_whole, pts, angle)
@@ -129,7 +140,7 @@ def main(fileName):
     while True:
         option = str(input('Keep current segmentation of fretboards?' + ' (y/n): ')).lower().strip()
         if option[0] == 'n':
-            n = int(input("Please enter the number of the frame to correct the semgentation: "))
+            n = int(input("Please enter the number of the frame to correct the segmentation: "))
             mask = FRETBOARD.fretbord_correction(guitar_images[n-1])
 
             filename = "mask_" + str(n) + ".png"
@@ -145,6 +156,7 @@ def main(fileName):
 if __name__ == '__main__':
     # Insert argument -c filename when running the python script
     parser = argparse.ArgumentParser()
+    # Select filename with -c filename.
     parser.add_argument('-c', type = str, dest = 'filename', help = 'Enter the name of the file', required = True)
     args = parser.parse_args().__dict__
     filename = args["filename"]
