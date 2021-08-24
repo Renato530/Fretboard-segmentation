@@ -4,12 +4,13 @@ dependencies:
   - python=3.7
   - pip
   - pywavelets
-  - c anaconda scipy
   - scikit-image
   - pip:
     - numpy
     - matplotlib
     - opencv-python
+    - scipy
+    - scikit-learn
     
     
   
