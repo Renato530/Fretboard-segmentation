@@ -251,8 +251,7 @@ def frets_extraction(vertical_image, kernel_lenght = 200, niterations=1):
     """
     kernel_lenght = np.array(vertical_image).shape[1]//kernel_lenght
     vertical_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, kernel_lenght))
-    frets = cv2.erode(vertical_image, vertical_kernel, iterations=niterations)
-    frets = cv2.dilate(frets, vertical_kernel, iterations=2)
+    frets = cv2.morphologyEx(vertical_image, cv2.MORPH_OPEN, vertical_kernel, iterations=niterations)
     frets = cv2.medianBlur(np.uint8(frets)*255, 9)
     frets = skeletonize(frets, method = "lee")
     return frets
@@ -273,14 +272,12 @@ def fretboardEdges(edges,kernel_lenght = 150, niterations=1):
         Binary image that contains the edges of the fretboard
     """
     kernel_lenght = np.array(edges).shape[1]//kernel_lenght
-    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (10, 10))
     horizontal_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (kernel_lenght, 1))
-    fretEdges = cv2.erode(edges, horizontal_kernel, iterations=niterations)
-    fretEdges = cv2.dilate(fretEdges, horizontal_kernel, iterations=1)
-    fretEdges = cv2.morphologyEx(fretEdges, cv2.MORPH_CLOSE, horizontal_kernel, iterations=3)
+    fretEdges = cv2.morphologyEx(edges, cv2.MORPH_OPEN, horizontal_kernel, iterations=niterations)
+    fretEdges = cv2.dilate(fretEdges, horizontal_kernel, iterations=2)
     return fretEdges
 
-def vertical_proj_peaks(frets, alpha = 0.5):
+def vertical_proj_peaks(frets, alpha = 0.2):
     """Applies a vertical projection on the frets image and detect peaks that corresponds to the position of the frets
     Parameters
     ----------
@@ -297,7 +294,7 @@ def vertical_proj_peaks(frets, alpha = 0.5):
     peaks_vert, _ = find_peaks(vertical_proj, prominence=alpha*np.max(np.abs(vertical_proj))) 
     return peaks_vert
 
-def mask_pts(frets , peaks_vert, threshold = 400, vmin=0, vmax=-1):
+def mask_pts(frets , peaks_vert, threshold = 450, vmin=0, vmax=-2):
     """Coordinates of the boundary box of the fretboard
     Parameters
     ----------
@@ -337,7 +334,7 @@ def mask_pts(frets , peaks_vert, threshold = 400, vmin=0, vmax=-1):
     b = np.array([b1, b2])
     return pts, m, b
 
-def mask_pts_v2(frets, peaks_vert, threshold = 400, vmin=0, vmax=-1):
+def mask_pts_v2(frets, peaks_vert, threshold = 450, vmin=0, vmax=-2):
     """Coordinates of the boundary box of the fretboard
     Parameters
     ----------
@@ -455,9 +452,9 @@ def fretbord_correction(image):
             xy = "%d,%d" % (x, y)
             a.append(x)
             b.append(y)
-            cv2.circle(image, (x, y), 2, (0, 0, 255), thickness=-5)
+            cv2.circle(image, (x, y), 2, (0, 0, 255), thickness=5)
             cv2.putText(image, xy, (x, y), cv2.FONT_HERSHEY_PLAIN,
-                        1.0, (255, 0, 0), thickness=1)
+                        1.0, (255, 0, 0), thickness=3)
             cv2.imshow("image", image)
 
     cv2.namedWindow('image', cv2.WINDOW_NORMAL)

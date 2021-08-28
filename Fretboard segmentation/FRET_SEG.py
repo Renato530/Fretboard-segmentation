@@ -111,15 +111,15 @@ def main(fileName):
         output_HL3 = FRETBOARD.wavelet_transform(rot_img)
         frets = cv2.threshold(np.uint8(output_HL3 * rot_mask), np.min(output_HL3), np.max(output_HL3),
                               cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
-        frets = FRETBOARD.frets_extraction(frets * rot_mask, kernel_lenght=100, niterations=1)
+        frets = FRETBOARD.frets_extraction(frets * rot_mask, kernel_lenght=100, niterations=4)
 
         # Fretboard edges extraction
-        fretboard_edges = FRETBOARD.fretboardEdges(rot_HED, kernel_lenght=100, niterations=1)
+        fretboard_edges = FRETBOARD.fretboardEdges(rot_HED, kernel_lenght=100, niterations=4)
         fretboard_edges = cv2.threshold(np.uint8(fretboard_edges), 0, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
 
         # Construct bounding box for the fretboard
-        peaks_frets = FRETBOARD.vertical_proj_peaks(frets, alpha=0.1)
-        pts, _, _ = FRETBOARD.mask_pts(fretboard_edges, peaks_frets, threshold=450, vmin=1, vmax=-1)
+        peaks_frets = FRETBOARD.vertical_proj_peaks(frets)
+        pts, _, _ = FRETBOARD.mask_pts(fretboard_edges, peaks_frets, threshold=450, vmin=0, vmax=-1)
 
         fretboard_mask = FRETBOARD.fretboard_mask(guitar_Crop_whole, pts, angle)
         dilate_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (4, 4))
