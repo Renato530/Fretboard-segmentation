@@ -249,14 +249,14 @@ def frets_extraction(vertical_image, kernel_lenght = 200, niterations=1):
     frets : np.array
         Binary image with the frets detected
     """
-    kernel_lenght = np.array(vertical_image).shape[1]//kernel_lenght
+
     vertical_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (1, kernel_lenght))
     frets = cv2.morphologyEx(vertical_image, cv2.MORPH_OPEN, vertical_kernel, iterations=niterations)
     frets = cv2.medianBlur(np.uint8(frets)*255, 9)
     frets = skeletonize(frets, method = "lee")
     return frets
 
-def fretboardEdges(edges,kernel_lenght = 150, niterations=1):
+def fretboardEdges(edges,kernel_lenght = 50, niterations=1):
     """Select the region of interest on the image
     Parameters
     ----------
@@ -271,7 +271,6 @@ def fretboardEdges(edges,kernel_lenght = 150, niterations=1):
     im_horizontal : np.array
         Binary image that contains the edges of the fretboard
     """
-    kernel_lenght = np.array(edges).shape[1]//kernel_lenght
     horizontal_kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (kernel_lenght, 1))
     fretEdges = cv2.morphologyEx(edges, cv2.MORPH_OPEN, horizontal_kernel, iterations=niterations)
     fretEdges = cv2.dilate(fretEdges, horizontal_kernel, iterations=2)
@@ -294,47 +293,7 @@ def vertical_proj_peaks(frets, alpha = 0.2):
     peaks_vert, _ = find_peaks(vertical_proj, prominence=alpha*np.max(np.abs(vertical_proj))) 
     return peaks_vert
 
-def mask_pts(frets , peaks_vert, threshold = 450, vmin=0, vmax=-2):
-    """Coordinates of the boundary box of the fretboard
-    Parameters
-    ----------
-    frets : np.array
-        Binary image with the frets detected
-    peaks_vert : list int
-        List of coordinates of the peaks the detected on the vertical projection (correspond to the position of the frets)
-    threshold : int
-        Threshold for the lines detected by the Probabilistic Hough Transform
-    vmin : int
-    vmax : int
-    Returns
-    -------
-    pts : list pts
-        List of the coordinates of the boundary box
-    a : int
-    b : int
-    """
-    linesP = Hough_linesP(frets, threshold)
-    lines = np.zeros([len(linesP), 1])
-    for i in range(0, len(linesP)):
-        line = linesP[i][0]
-        lines[i] = line[1]
-    l = linesP[np.argmax(lines)][0]
-    l2 = linesP[np.argmin(lines)][0]
-    m1 = (l[3]-l[1])/(l[2]-l[0])
-    b1 = l[1] - m1*l[0]
-
-    m2 = (l2[3]-l2[1])/(l2[2]-l2[0])
-    b2 = l2[1] - m2*l2[0]
-    p1 = np.int0([peaks_vert[vmin], peaks_vert[vmin]*m1+b1])
-    p2 = np.int0([peaks_vert[vmin], peaks_vert[vmin]*m2+b2])
-    p3 = np.int0([peaks_vert[vmax], peaks_vert[vmax]*m2+b2])
-    p4 = np.int0([peaks_vert[vmax], peaks_vert[vmax]*m1+b1])
-    pts = np.array([p1, p2, p3, p4])
-    m = np.array([m1, m2])
-    b = np.array([b1, b2])
-    return pts, m, b
-
-def mask_pts_v2(frets, peaks_vert, threshold = 450, vmin=0, vmax=-2):
+def mask_pts(frets, peaks_vert, threshold=450, vmin=0, vmax=-1):
     """Coordinates of the boundary box of the fretboard
     Parameters
     ----------
@@ -355,9 +314,9 @@ def mask_pts_v2(frets, peaks_vert, threshold = 450, vmin=0, vmax=-2):
     points = np.zeros((len(linesP), 4))
     for i in range(len(linesP)):
         points[i] = linesP[i][0]
-    points.reshape(2*len(linesP), 2)
+    points.reshape(2 * len(linesP), 2)
 
-    th = (np.max(points[:, 1]) + np.min(points[:, 1]))/2
+    th = (np.max(points[:, 1]) + np.min(points[:, 1])) / 2
     pts_1 = []
     pts_2 = []
     for i in range(len(linesP)):
@@ -368,25 +327,26 @@ def mask_pts_v2(frets, peaks_vert, threshold = 450, vmin=0, vmax=-2):
     pts_1 = np.array(pts_1)
     pts_2 = np.array(pts_2)
 
-    x1 = np.zeros([len(pts_1), 1])
-    x2 = np.zeros([len(pts_2), 1])
-    y1 = pts_1[:, 1]
-    y2 = pts_2[:, 1]
-    for i  in range(len(pts_1)):
-        x1[i] = pts_1[i, 0]
-    
-    for i in range(len(pts_2)):
-        x2[i] = pts_2[i, 0]
+    topEdge, bottomEdge = clustering_pts(pts_1, pts_2)
+    x1 = np.zeros([len(topEdge), 1])
+    x2 = np.zeros([len(bottomEdge), 1])
+    y1 = topEdge[:, 1]
+    y2 = bottomEdge[:, 1]
+    for i in range(len(topEdge)):
+        x1[i] = topEdge[i, 0]
+
+    for i in range(len(bottomEdge)):
+        x2[i] = bottomEdge[i, 0]
     regr1 = linear_model.LinearRegression()
     regr2 = linear_model.LinearRegression()
-    
+
     regr1.fit(x1, y1)
     regr2.fit(x2, y2)
 
     xx1 = np.array([[peaks_vert[vmin]], [peaks_vert[vmax]]])
     y1_pred = regr1.predict(xx1)
     y2_pred = regr2.predict(xx1)
-    
+
     p1 = np.int0([peaks_vert[vmin], y1_pred[0]])
     p2 = np.int0([peaks_vert[vmin], y2_pred[0]])
     p3 = np.int0([peaks_vert[vmax], y2_pred[1]])
@@ -394,6 +354,56 @@ def mask_pts_v2(frets, peaks_vert, threshold = 450, vmin=0, vmax=-2):
     pts = np.array([p1, p2, p3, p4])
 
     return pts
+
+def clustering_pts(pts_1, pts_2):
+    """Select the region of interest on the image
+    Parameters
+    ----------
+    pts_1 : np.array
+        Coordinates of the top class of the fretboard
+    pts_2 : np.array
+        Coordinates of the bottom class of the fretboard
+    Returns
+    -------
+    topEdge : np.array
+        Coordinates of the top edge of the fretboard
+    bottomEdge : np.array
+        Coordinates of the bottom edge of the fretboard
+    """
+    maximum = np.max(pts_1[:, 1])
+    minimum = np.min(pts_1[:, 1])
+    distance = maximum - minimum
+    moy = (maximum + minimum)/2
+    topEdge = pts_1
+    while distance > 30:
+        pt = []
+        for i in range(len(topEdge)):
+            if topEdge[i, 1] < moy:
+                pt.append(topEdge[i])
+        topEdge = np.array(pt)
+        maximum = np.max(topEdge[:, 1])
+        minimum = np.min(topEdge[:, 1])
+        distance = maximum - minimum
+        moy = (maximum + minimum)/2
+
+    maximum = np.max(pts_2[:, 1])
+    minimum = np.min(pts_2[:, 1])
+    distance = maximum - minimum
+    moy = (maximum + minimum)/2
+    bottomEdge = pts_2
+
+    while distance > 30:
+        pt = []
+        for i in range(len(bottomEdge)):
+            if bottomEdge[i, 1] < moy:
+                pt.append(bottomEdge[i])
+        bottomEdge = np.array(pt)
+        maximum = np.max(bottomEdge[:, 1])
+        minimum = np.min(bottomEdge[:, 1])
+        distance = maximum - minimum
+        moy = (maximum + minimum)/2
+
+    return topEdge, bottomEdge
 
 def fretboard_mask(image, pts, guitar_angle):
     """Creates the fretboard mask
