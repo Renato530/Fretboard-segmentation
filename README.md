@@ -25,7 +25,7 @@ In order to use the following fretboard segmentation, you must make sure to have
 
 ## Descriptions
 ### Select ROI
-Open CV is used to select a general ROI that will be applied to all the images of the given folder. This steps helps reduce the background noise effects on the image.
+Open CV is used to select a general ROI that will be applied to all the images of the given folder. This steps helps reduce the background noise effects on the image and isolate area of interest.
 
 ### Edge detection
 Canny for edge detection depends on thresholds which do not work in all environment conditions of the image. For example, this approach is very sensitive to bright light conditions. Hence, the holistically-nested edge detection (HED) is a deep learning implementation of an edge detector. This approach is more suited to extract the edges of the fretboard regardless of background conditions.
